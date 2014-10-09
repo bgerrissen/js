@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Example Graft</title>
+    </head>
+    <body>
+
+        <button>Click me</button>
+        <div id="output"></div>
+
+        <script src="graft.js"></script>
+        <script>
+
+            var ClickHandler = Graft.sub({
+
+                config: {
+                    option: 'yes'
+                },
+
+                bindings: {
+                    'click button': 'handleClick',
+                    'foo:update': 'handleBusEvent'
+                },
+
+                handleClick: function(){
+                    this.notify('bus:greet','Hello world!');
+                }
+
+            });
+
+            var OutputHandler = Graft.sub({
+
+                bindings: {
+                    'bus:greet':'handleGreet'
+                },
+
+                handleGreet: function(e){
+                    this.node.innerHTML = e.data;
+                }
+
+            });
+
+
+            var ButtonClicker = Graft.sub({
+
+                init: function(){
+                    this.notify('click');
+                }
+
+            });
+
+            new ClickHandler(document.body);
+            new OutputHandler(document.getElementById('output'));
+            new ButtonClicker(document.getElementsByTagName('button')[0]);
+
+
+            Graft.getBus('foo').notify('update',{data:'UPDATE'});
+
+
+
+        </script>
+
+    </body>
+</html>
