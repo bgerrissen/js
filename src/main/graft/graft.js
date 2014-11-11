@@ -3,22 +3,41 @@ var Graft;
 
     var root = doc.documentElement || doc;
 
-    Graft = function( node, config ){
-        initGraft.apply( this, arguments );
-    };
+    Graft = function(){};
 
     Graft.prototype = {
 
+        /**
+         * The element that will be created when the Graft is instantiated with Graft.create() method.
+         * The 'node' property of the Graft instance will contain the element that was created.
+         *
+         */
+        tag: "div",
+
+        /**
+         * Default configuration (if any)
+         */
         config: null,
 
+        /**
+         * Event bindings, can contain DOM and EventBus bindings, for example:
+         *    bindings: {
+         *       "click": "methodName",        // DOM Binding
+         *       "click button": "methodName", // DOM Binding with selector matcher
+         *       "bus:update": "methodName",   // EventBus binding on 'bus' namespace
+         *       "foo:update": "methodName"    // EventBus binding on 'foo' namespace
+         *    }
+         *
+         *
+         */
         bindings: null,
 
         init: function(){},
 
         listen: function ( eventSelector, listener ) {
 
-            var bits = eventSelector.match(/(?:^(\w+)\:)*([\w\._-]+)*(?:\s(.+))*/);
-            var namespace = bits[ 1 ];
+            var bits = eventSelector.match(/(?:^(\w*)\:)*([\w\._-]+)*(?:\s(.+))*/);
+            var namespace = typeof bits[ 1 ] === "string" ? ( bits[1] || this.config.busNS || 'default' ) : null;
             var event = bits[ 2 ];
             var selector = bits[ 3 ];
 
@@ -34,8 +53,8 @@ var Graft;
 
         deafen: function ( eventSelector, listener ) {
 
-            var bits = eventSelector.match(/(?:^(\w+)\:)*([\w\._-]+)*(?:\s(.+))*/);
-            var namespace = bits[ 1 ];
+            var bits = eventSelector.match(/(?:^(\w*)\:)*([\w\._-]+)*(?:\s(.+))*/);
+            var namespace = typeof bits[ 1 ] === "string" ? ( bits[1] || this.config.busNS || 'default' ) : null;
             var event = bits[ 2 ];
             var selector = bits[ 3 ];
 
@@ -51,8 +70,8 @@ var Graft;
 
         notify: function ( event, data ) {
 
-            var bits = event.match(/(?:^(\w+)\:)*([\w\._-]+)/);
-            var namespace = bits[ 1 ];
+            var bits = event.match(/(?:^(\w*)\:)*([\w\._-]+)/);
+            var namespace = typeof bits[ 1 ] === "string" ? ( bits[1] || this.config.busNS || 'default' ) : null;
             var event = bits[ 2 ];
 
             if ( namespace && event ) {
@@ -61,19 +80,63 @@ var Graft;
                 notify( this.node, event, data );
             }
 
+        },
+
+        appendTo: function( node ){
+            if ( node instanceof Graft ) {
+                node.node.appendChild( this.node );
+            } else if ( 'appendChild' in node ) {
+                node.appendChild( this.node );
+            }
+        },
+
+        append: function( node ){
+            if ( node instanceof Graft ) {
+                this.node.appendChild( node.node );
+            } else {
+                this.node.appendChild( node );
+            }
+        },
+
+        latch: function( method ){
+            return bind(method,this);
         }
 
     };
 
 
     Graft.sub = function( properties ){
-        function Sub( node, config ){
-            initGraft.apply( this, arguments );
+        function Graft(){}
+        Graft.prototype = mixin( clone( this.prototype ), properties );
+        Graft.sub = this.sub;
+        Graft.create = this.create;
+        Graft.attach = this.attach;
+        Graft.attachEach = this.attachEach;
+        Graft.tag = this.tag;
+        Graft.prototype.__super__ = this;
+        return Graft;
+    };
+
+    Graft.create = function( config ){
+        return initGraft.call(new (this)(), document.createElement( (this).tag() ), config );
+    };
+
+    Graft.attach = function( node, config ){
+        return initGraft.call(new (this)(), node, config );
+    };
+
+    Graft.attachEach = function( selector, config ){
+        var list = document.querySelectorAll( selector );
+        var index = list.length;
+        var instances = [];
+        while( index-- ) {
+            instances.unshift(this.attach(list[index],config));
         }
-        Sub.prototype = mixin( clone( this.prototype ), properties );
-        Sub.sub = this.sub;
-        Sub.__super__ = this;
-        return Sub;
+        return instances;
+    };
+
+    Graft.tag = function(){
+        return this.prototype.tag;
     };
 
 
@@ -141,7 +204,8 @@ var Graft;
         if ( this.bindings ) {
             initBindings(this);
         }
-        this.init();
+        this.init(this.node,this.config);
+        return this;
     }
 
     function initBindings( instance ) {

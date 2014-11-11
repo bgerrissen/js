@@ -6,56 +6,68 @@
     </head>
     <body>
 
-        <button>Click me</button>
-        <div id="output"></div>
+        <div class="app">
+            <button class="button"></button>
+            <textarea class="output"></textarea>
+        </div>
 
         <script src="graft.js"></script>
         <script>
 
-            var ClickHandler = Graft.sub({
-
-                config: {
-                    option: 'yes'
-                },
+            var App = Graft.sub({
 
                 bindings: {
-                    'click button': 'handleClick',
-                    'foo:update': 'handleBusEvent'
+                    'click button': 'handleClick'
                 },
 
-                handleClick: function(){
-                    this.notify('bus:greet','Hello world!');
+                handleClick: function(e){
+                    this.notify(':greet','Hello world!');
                 }
 
             });
 
-            var OutputHandler = Graft.sub({
+            var Output = Graft.sub({
+
+                tag: "textarea",
 
                 bindings: {
-                    'bus:greet':'handleGreet'
+                    ":greet": "handleGreet"
                 },
 
                 handleGreet: function(e){
-                    this.node.innerHTML = e.data;
+                    this.node.value = e.data;
                 }
+
 
             });
 
 
-            var ButtonClicker = Graft.sub({
+            var Button = Graft.sub({
+
+                tag: "button",
 
                 init: function(){
-                    this.notify('click');
+                    this.node.innerHTML = "Click me!";
                 }
 
             });
 
-            new ClickHandler(document.body);
-            new OutputHandler(document.getElementById('output'));
-            new ButtonClicker(document.getElementsByTagName('button')[0]);
 
+            // Example 1
 
-            Graft.getBus('foo').notify('update',{data:'UPDATE'});
+            var app = App.create();
+
+            app.append(Button.create());
+            app.append(Output.create());
+
+            app.appendTo(document.body);
+
+            // Example 2
+
+            App.attachEach(".app",{busNS:'foo'});
+            Button.attachEach(".button",{busNS:'foo'});
+            Output.attachEach(".output",{busNS:'foo'});
+
 
 
 
